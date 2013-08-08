@@ -8,6 +8,12 @@ run ->(env) {
   response = Net::HTTP.get_response(uri)
   html = response.body
   bodypos = html.index("</body>")
-  html.insert(bodypos, "<script>alert('#{uuid}')</script>") if bodypos
+  snippet = <<-HTML
+<script type="text/javascript" src="http://mhe-metadata-server.herokuapp.com/asset-tagger.js"></script>
+<script type="text/javascript">
+  MheMetadataServer.loadContentId('#{uuid}');
+</script>
+HTML
+  html.insert(bodypos, snippet) if bodypos
   [200, {'Content-Type' => 'text/html'}, [response.body]]
 }
