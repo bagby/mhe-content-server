@@ -8,6 +8,6 @@ run ->(env) {
   response = Net::HTTP.get_response(uri)
   html = response.body
   bodypos = html.index("</body>")
-  html.insert(bodypos, "<script>alert('#{uuid}')</script>")
+  html.insert(bodypos, "<script>alert('#{uuid}')</script>") if bodypos
   [200, {'Content-Type' => 'text/html'}, [response.body]]
 }
