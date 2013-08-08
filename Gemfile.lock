@@ -1,0 +1,11 @@
+GEM
+  specs:
+    rack (1.5.2)
+    uuidtools (2.1.4)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  rack
+  uuidtools
