@@ -11,7 +11,7 @@ run ->(env) {
   snippet = <<-HTML
 <script type="text/javascript" src="http://mhe-metadata-server.herokuapp.com/asset-tagger.js"></script>
 <script type="text/javascript">
-  MheMetadataServer.loadContentId('#{uuid}');
+  MheMetadata.loadContentId('#{uuid}');
 </script>
 HTML
   html.insert(bodypos, snippet) if bodypos
