@@ -14,6 +14,9 @@ run ->(env) {
   MheMetadata.loadContentId('#{uuid}');
 </script>
 HTML
+  headers = response.to_hash.inject({}) {|h,p| h[p[0]] = p[1].first; h}
+  headers.delete('content-length')
+  headers['location'].gsub!(/en\.wikipedia\.org/, env['HTTP_HOST']) if headers.key? 'location'
   html.insert(bodypos, snippet) if bodypos
-  [200, {'Content-Type' => 'text/html'}, [response.body]]
+  [response.code, headers, [html]]
 }
