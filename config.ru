@@ -2,21 +2,61 @@ require 'net/http'
 require 'uri'
 require 'uuidtools'
 
-run ->(env) {
-  uri = URI.join('http://en.wikipedia.org', env['PATH_INFO'])
-  uuid = UUIDTools::UUID.md5_create(UUIDTools::UUID_DNS_NAMESPACE, uri.to_s)
-  response = Net::HTTP.get_response(uri)
-  html = response.body
-  bodypos = html.index("</body>")
-  snippet = <<-HTML
+class WikiProxy
+  def call(env)
+    request = Rack::Request.new(env)
+
+    unless request.get?
+      return [405, {'content-length' => '0'}, ['']]
+    end
+
+    if request.path == '/w/api.php'
+      return [200, {'content-type' => 'application/json; charset=utf-8', 'content-length' => '2'}, ['{}']]
+    end
+
+    uri      = URI.join('http://en.wikipedia.org', request.path)
+    uuid     = make_uuid(uri)
+    response = Net::HTTP.get_response(uri)
+
+    code    = response.code.to_i
+    body    = process_body(response, uuid)
+    headers = process_headers(response, request.host_with_port, body.bytesize)
+
+    [code, headers, [body]]
+  end
+
+  def process_body(response, uuid)
+    body = response.body
+    return body unless response.content_type == 'text/html'
+
+    bodypos = body.index("</body>")
+    return body unless bodypos
+
+    snippet = <<-HTML
 <script type="text/javascript" src="http://mhe-metadata-server.herokuapp.com/asset-tagger.js"></script>
 <script type="text/javascript">
   MheMetadata.loadContentId('#{uuid}');
 </script>
 HTML
-  headers = response.to_hash.inject({}) {|h,p| h[p[0]] = p[1].first; h}
-  headers.delete('content-length')
-  headers['location'].gsub!(/en\.wikipedia\.org/, env['HTTP_HOST']) if headers.key? 'location'
-  html.insert(bodypos, snippet) if bodypos
-  [response.code, headers, [html]]
-}
+    body.insert(bodypos, snippet)
+  end
+
+  def process_headers(response, host_with_port, body_bytesize)
+    headers = {}
+    response.each_header do |key, value|
+      next if key == 'content-length'
+      if key == 'location'
+        value.gsub!(/en\.wikipedia\.org/, host_with_port)
+      end
+      headers[key] = value
+    end
+    headers['content-length'] = body_bytesize.to_s
+    headers
+  end
+
+  def make_uuid(uri)
+    UUIDTools::UUID.md5_create(UUIDTools::UUID_DNS_NAMESPACE, uri.to_s)
+  end
+end
+
+run WikiProxy.new
