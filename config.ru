@@ -29,6 +29,18 @@ class WikiProxy
     body = response.body
     return body unless response.content_type == 'text/html'
 
+    headpos = body.index("</head>")
+    return body unless headpos
+
+    style = <<-HTML
+<style type="text/css">
+#mw-navigation { display: none; }
+div#content, div#footer { margin-left: 260px; }
+.metadata { display: none; }
+</style>
+HTML
+    body.insert(headpos, style)
+
     bodypos = body.index("</body>")
     return body unless bodypos
 
