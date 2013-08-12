@@ -40,6 +40,8 @@ class WikiProxy
 #mw-navigation { display: none; }
 div#content, div#footer { margin-left: 260px; }
 .metadata { display: none; }
+iframe { border-style: solid; border-radius: 6px; width:212px; height:500px; background: #e5f5ef; }
+
 </style>
 HTML
     body = body.insert(headpos, style)
