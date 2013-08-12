@@ -1,5 +1,6 @@
 require 'net/http'
 require 'uri'
+require 'stringio'
 require 'uuidtools'
 
 class WikiProxy
@@ -29,7 +30,9 @@ class WikiProxy
     body = response.body
     return body unless response.content_type == 'text/html'
 
-    headpos = body.index("</head>")
+    body = inflate(body, response['content-encoding'])
+
+    headpos = body.index('</head>')
     return body unless headpos
 
     style = <<-HTML
@@ -39,7 +42,7 @@ div#content, div#footer { margin-left: 260px; }
 .metadata { display: none; }
 </style>
 HTML
-    body.insert(headpos, style)
+    body = body.insert(headpos, style)
 
     bodypos = body.index("</body>")
     return body unless bodypos
@@ -50,7 +53,11 @@ HTML
   MheMetadata.loadContentId('#{uuid}');
 </script>
 HTML
-    body.insert(bodypos, snippet)
+    body = body.insert(bodypos, snippet)
+
+    body = deflate(body, response['content-encoding'])
+
+    body
   end
 
   def process_headers(response, host_with_port, body_bytesize)
@@ -64,6 +71,32 @@ HTML
     end
     headers['content-length'] = body_bytesize.to_s
     headers
+  end
+
+  def inflate(body, content_encoding)
+    if content_encoding == 'gzip'
+      io = StringIO.new(body, 'rb')
+      reader = Zlib::GzipReader.new(io)
+      reader.read
+    elsif content_encoding == 'deflate'
+      Zlib::Inflate.inflate(body)
+    else
+      body
+    end
+  end
+
+  def deflate(body, content_encoding)
+    if content_encoding == 'gzip'
+      io = StringIO.new('w')
+      writer = Zlib::GzipWriter.new(io)
+      writer.write(body)
+      writer.close
+      io.string
+    elsif content_encoding == 'deflate'
+      Zlib::Inflate.deflate(body)
+    else
+      body
+    end
   end
 
   def make_uuid(uri)
